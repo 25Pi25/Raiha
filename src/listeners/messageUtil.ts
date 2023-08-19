@@ -1,4 +1,4 @@
-import { Attachment, EmbedBuilder, Message, TextChannel } from 'discord.js';
+import { ActionRowBuilder, Attachment, ButtonBuilder, ButtonStyle, EmbedBuilder, Message, TextChannel } from 'discord.js';
 import { getAIDescription, react } from '../misc/misc';
 import { CLIENT, db, leaderboards } from '../raiha';
 
