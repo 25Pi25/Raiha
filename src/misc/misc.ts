@@ -17,7 +17,23 @@ export function getAllowedMentions(mentions?: MessageMentions): MessageMentionOp
   }
 }
 
-export async function getAIDescription(imageUrl: string, doCaption = true, doOCR = true) {
+interface ImageAnalysis {
+  readResult: {
+    content: string
+  }
+  captionResult: {
+    text: string
+    confidence: number
+  }
+}
+interface ImageAnalysisError {
+  status: string,
+  error: {
+    code: number
+    message: string
+  }
+};
+export async function getAIDescription(imageUrl: string, doCaption = true, doOCR = true): Promise<string> {
   const features = doCaption && doOCR ? "caption,read" :
     doCaption ? "caption" : "read"
   const endpoint = `${process.env.CV_ENDPOINT}computervision/imageanalysis:analyze?api-version=2023-02-01-preview&features=${features}`;
@@ -25,38 +41,25 @@ export async function getAIDescription(imageUrl: string, doCaption = true, doOCR
     method: 'POST',
     headers: {
       "Content-Type": "application/json",
-      "Ocp-Apim-Subscription-Key": `${process.env.CV_API_KEY}`
+      "Ocp-Apim-Subscription-Key": process.env.CV_API_KEY
     },
     body: JSON.stringify({ url: imageUrl })
-  });
+  }).catch(() => ({ ok: false, status: 401 }));
+
   if (!response.ok) {
+    const errorResponse = await response.json() as ImageAnalysisError;
     try {
-      const result = await response.json() as { error: { code: number, message: string } };
-      return `Request failed. (${response.status}) - ${result.error.code}: ${result.error.message}`;
+      const { status, error: { code, message } } = errorResponse;
+      return `Request failed. (${status}) - ${code}: ${message}`;
     } catch (err) {
-      return `Request failed. (${response.status})`;
+      return `Request failed. (${errorResponse.status})`;
     }
   }
-  if (doCaption) {
-    if (doOCR) {
-      // Caption & OCR
-      const result: any = await response.json();
-      const caption = `${result.captionResult.text} (${result.captionResult.confidence.toFixed(3)})`;
-      const text = result.readResult.content;
-      const description = `${caption}: ${text}`.replace('\n', ' \n');
-      return description;
-    }
+  const { readResult, captionResult } = await response.json() as ImageAnalysis;
+  const confidenceCaption = doCaption ? `${captionResult.text} (${captionResult.confidence.toFixed(3)})` : "";
+  const description = doOCR ? readResult.content : "";
 
-    // Caption
-    const result: any = await response.json();
-    return `${result.captionResult.text} (${result.captionResult.confidence.toFixed(3)})`;
-  }
-
-  // OCR
-  const result: any = await response.json();
-  const text = result.readResult.content;
-  const description = text.replace('\n', ' \n');
-  return description;
+  return `${confidenceCaption}${doCaption && doOCR ? ":" : ""} ${description}`.replace(/\n/g, " \n");
 }
 
 type ReactionType = 'ERR_MISSING_ALT_TEXT' | 'ERR_MISMATCH' | 'ERR_NOT_REPLY';
