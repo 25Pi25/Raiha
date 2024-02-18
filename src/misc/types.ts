@@ -76,4 +76,4 @@ export const NoTrigger: Trigger = {
   raw: undefined,
   override: undefined,
   body: undefined
-}
+} as const;

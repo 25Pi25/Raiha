@@ -15,7 +15,7 @@ import parseTriggers from "../actions/parseTriggers.action";
 import { NoTrigger, Trigger, TriggerType } from "../misc/types";
 
 export async function handleMessage(msg: Message<true>) {
-  if (msg.author.bot || !msg.inGuild()) return;
+  if (msg.author.bot) return;
 
   let triggerData = parseTriggers(msg);
 

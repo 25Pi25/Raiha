@@ -110,7 +110,7 @@ const AudioHelp = new EmbedBuilder()
     "_Note: Overrides will apply to all alts/transcriptions triggered by the message._"
   );
 
-export const HelpEmbedMap: { [key: string]: EmbedBuilder } = {
+export const HelpEmbedMap = {
   'native': NativeHelp,
   'reposts': RepostsHelp,
   'ai': AiHelp,
@@ -118,4 +118,4 @@ export const HelpEmbedMap: { [key: string]: EmbedBuilder } = {
   'edits': EditsHelp,
   'audio': AudioHelp,
   'overrides': OverridesHelp
-};
+} as const;

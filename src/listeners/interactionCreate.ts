@@ -1,10 +1,9 @@
-import { ActionRowBuilder, EmbedBuilder, GuildMemberRoleManager, Interaction, Message, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js';
+import { ActionRowBuilder, ComponentType, EmbedBuilder, Interaction, StringSelectMenuBuilder } from 'discord.js';
 import { ServerValue } from "firebase-admin/database";
 import { postLeaderboard, postLoserboard, postRank } from '../misc/leaderboards';
 import { generateAllowedMentions } from "../actions/generateAllowedMentions.action";
-import { expiry, whyText } from '../misc/misc';
+import { whyText } from '../misc/misc';
 import { VERSION, db, leaderboards } from '../raiha';
-import { checkIsOP } from "../actions/checkIsOP.action";
 import { HelpEmbedMap, HelpSelections } from '../misc/help';
 
 export default async function (interaction: any) {
@@ -47,7 +46,7 @@ export default async function (interaction: any) {
     await interaction.deferReply();
 
     const page = options.getNumber('page')?.valueOf() ?? 1;
-    const content = await postLoserboard(interaction.guildId!, page);
+    const content = await postLoserboard(interaction.guildId, page);
     const embed = new EmbedBuilder()
       .setTitle(`Loserboard${page !== 1 ? ' (Page ' + page + ')' : ''}`)
       .setDescription(content)
@@ -61,7 +60,7 @@ export default async function (interaction: any) {
     await interaction.deferReply();
 
     const { options, member } = interaction;
-    let rm = (member!.roles as GuildMemberRoleManager).cache;
+    let rm = member.roles.cache;
     if (rm.has(leaderboards.Configuration[interaction.guildId!].modRole)) {
       const specifiedUser = options.getUser('user')!;
       const specifiedBoard = options.getString('board')!.valueOf();
@@ -69,7 +68,7 @@ export default async function (interaction: any) {
       const specifiedValue = Math.max(0, options.getNumber('value')!.valueOf())
 
       const ref = db.ref(`/Leaderboard/${specifiedBoard!}/${interaction.guildId}`).child(specifiedUser.id);
-      const originalValue = (await ref.get()).val();
+      const originalValue: number = (await ref.get()).val();
       if (specifiedOperation == 'Add') {
         ref.set(ServerValue.increment(specifiedValue));
       }
@@ -82,7 +81,7 @@ export default async function (interaction: any) {
 
       const embed = new EmbedBuilder()
         .setTitle(`Leaderboard Override`)
-        .setDescription(`Set <@${specifiedUser!.id}>'s **${specifiedBoard!}** value from \`${originalValue!}\` to \`${(await ref.get()).val()!}\`.`)
+        .setDescription(`Set <@${specifiedUser.id}>'s **${specifiedBoard}** value from \`${originalValue}\` to \`${(await ref.get()).val()}\`.`)
 
         .setColor(0xd797ff);
       await interaction.editReply({ embeds: [embed], allowedMentions: generateAllowedMentions() });
@@ -105,20 +104,21 @@ export default async function (interaction: any) {
     const specifiedSetting = options.getString('setting')!.valueOf();
     const specifiedOption = options.getString('option')!.valueOf() == 'YES'
 
-    let ref;
     switch (specifiedSetting) {
       case 'Reminder':
-        ref = db.ref(`/UserSettings/${user.id}`).child('Reminder');
-        ref.set(specifiedOption);
+        db.ref(`/UserSettings/${user.id}`)
+          .child('Reminder')
+          .set(specifiedOption);
         break;
       case 'ActivationFailure':
-        ref = db.ref(`/UserSettings/${user.id}`).child('ActivationFailure');
-        ref.set(specifiedOption);
-          break;
+        db.ref(`/UserSettings/${user.id}`)
+          .child('ActivationFailure')
+          .set(specifiedOption);
+        break;
       case 'AutoMode':
-        ref = db.ref(`/UserSettings/${user.id}`).child('AutoMode');
-        ref.set(specifiedOption);
-          break;
+        db.ref(`/UserSettings/${user.id}`).child('AutoMode')
+          .set(specifiedOption);
+        break;
       default:
         break;
     }
@@ -132,17 +132,17 @@ export default async function (interaction: any) {
   }
 
   if (commandName === 'help') {
-    const row = new ActionRowBuilder()
-			.addComponents(HelpSelections);
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>()
+      .addComponents(HelpSelections);
 
-		const response = await interaction.reply({
+    const response = await interaction.reply({
       content: "Please make a selection:",
-			components: [row],
+      components: [row],
     });
 
     try {
       const confirmation = await response.awaitMessageComponent({ time: 60_000 });
-      const selection: string = confirmation.values[0] ?? 'error';
+      const selection: keyof typeof HelpEmbedMap = confirmation.values[0] ?? 'error';
       await confirmation.update({ content: "", embeds: [HelpEmbedMap[selection]], components: [] })
     } catch (e) {
       await interaction.deleteReply();
